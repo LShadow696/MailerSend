@@ -16,14 +16,17 @@ import {
 } from "lucide-react";
 import { toast, Toaster } from "sonner";
 import {
-  getSmsLine,
+  getChannelStatus,
   getSmsStatus,
   listSmsHistory,
+  lookupService,
+  saveWhatsApp,
   sendSms,
 } from "@/lib/sms/api";
 import {
   DRAFT_KEY,
   FROM_NUMBER,
+  IMESSAGE_FROM,
   OUTBOX_KEY,
   OUTBOX_LIMIT,
   PEOPLE_KEY,
@@ -34,11 +37,13 @@ import {
   TEMPLATES_LIMIT,
 } from "@/lib/sms/constants";
 import { copy, statusLabel } from "@/lib/sms/copy";
+import { channels, type Channel, type ChannelStatus } from "@/lib/sms/channels";
 import {
   formatPretty,
   nameTokensOk,
   parseRecipients,
   recipientsIssue,
+  type SendMode,
 } from "@/lib/sms/phone";
 import { analyzeMessage } from "@/lib/sms/segments";
 import {
@@ -86,11 +91,19 @@ type OutboxItem = {
   error?: string;
   at: number;
   segments: number;
+  channel?: SendMode;
 };
 
 type Person = { id: string; name: string; phone: string };
 type Template = { id: string; title: string; text: string };
 type SettingsState = { signature: string; confirm: boolean };
+
+type LinesPayload = {
+  sms: LineStatus;
+  imessage: LineStatus;
+  whatsapp: LineStatus;
+  contacts: Array<{ name: string; phone: string }>;
+};
 
 function readJson<T>(key: string, fallback: T): T {
   try {
@@ -114,23 +127,33 @@ function composeBody(text: string, signature: string) {
   return `${body}\n${sig}`;
 }
 
-const FALLBACK_LINE: LineStatus = {
-  connected: false,
-  from: FROM_NUMBER,
-  paused: false,
+const FALLBACK_LINES: LinesPayload = {
+  sms: { connected: false, from: FROM_NUMBER, paused: false },
+  imessage: { connected: false, from: IMESSAGE_FROM, paused: false },
+  whatsapp: { connected: false, from: "", paused: false },
+  contacts: [],
 };
 
 const DEFAULT_SETTINGS: SettingsState = { signature: "", confirm: true };
 
-export function SmsStudio({ initialLine }: { initialLine?: LineStatus }) {
-  const seed = initialLine ?? FALLBACK_LINE;
-  const [line, setLine] = useState<LineStatus>(seed);
+export function SmsStudio({ initial }: { initial?: LinesPayload }) {
+  const seed = initial ?? FALLBACK_LINES;
+  const [smsLine, setSmsLine] = useState<LineStatus>(seed.sms);
+  const [imessageLine, setImessageLine] = useState<LineStatus>(seed.imessage);
+  const [whatsappLine, setWhatsappLine] = useState<LineStatus>(seed.whatsapp);
+  const [sendMode, setSendMode] = useState<SendMode>("imessage");
   const [to, setTo] = useState("");
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [shake, setShake] = useState(false);
   const [outbox, setOutbox] = useState<OutboxItem[]>([]);
-  const [people, setPeople] = useState<Person[]>([]);
+  const [people, setPeople] = useState<Person[]>(() =>
+    (seed.contacts ?? []).map((row) => ({
+      id: row.phone,
+      name: row.name,
+      phone: row.phone,
+    })),
+  );
   const [templates, setTemplates] = useState<Template[]>([]);
   const [settings, setSettings] = useState<SettingsState>(DEFAULT_SETTINGS);
   const [hydrated, setHydrated] = useState(false);
@@ -141,17 +164,39 @@ export function SmsStudio({ initialLine }: { initialLine?: LineStatus }) {
   const [personName, setPersonName] = useState("");
   const [templateTitle, setTemplateTitle] = useState("");
   const [query, setQuery] = useState("");
+  const [channelId, setChannelId] = useState<Channel["id"] | null>(null);
   const [checkingId, setCheckingId] = useState<string | null>(null);
   const [pulling, setPulling] = useState(false);
+  const [lookup, setLookup] = useState<string | null>(null);
+  const [waPhoneId, setWaPhoneId] = useState("");
+  const [waToken, setWaToken] = useState("");
+  const [waTemplate, setWaTemplate] = useState("hello_world");
+  const [waConnecting, setWaConnecting] = useState(false);
 
   useEffect(() => {
-    const draft = readJson<{ to?: string; text?: string }>(DRAFT_KEY, {});
+    const draft = readJson<{ to?: string; text?: string; channel?: SendMode }>(
+      DRAFT_KEY,
+      {},
+    );
     setTo(typeof draft.to === "string" ? draft.to : "");
     setText(typeof draft.text === "string" ? draft.text : "");
+    if (
+      draft.channel === "sms" ||
+      draft.channel === "imessage" ||
+      draft.channel === "whatsapp"
+    ) {
+      setSendMode(draft.channel);
+    }
     const storedOutbox = readJson<OutboxItem[]>(OUTBOX_KEY, []);
     setOutbox(Array.isArray(storedOutbox) ? storedOutbox : []);
     const storedPeople = readJson<Person[]>(PEOPLE_KEY, []);
-    setPeople(Array.isArray(storedPeople) ? storedPeople : []);
+    if (Array.isArray(storedPeople) && storedPeople.length) {
+      setPeople((prev) => {
+        const have = new Set(storedPeople.map((person) => person.phone));
+        const extra = prev.filter((person) => !have.has(person.phone));
+        return [...storedPeople, ...extra].slice(0, PEOPLE_LIMIT);
+      });
+    }
     const storedTemplates = readJson<Template[]>(TEMPLATES_KEY, []);
     setTemplates(Array.isArray(storedTemplates) ? storedTemplates : []);
     const storedSettings = readJson<SettingsState>(
@@ -167,24 +212,39 @@ export function SmsStudio({ initialLine }: { initialLine?: LineStatus }) {
     });
     setHydrated(true);
     let cancelled = false;
-    getSmsLine()
+    getChannelStatus()
       .then((status) => {
-        if (!cancelled) setLine(status);
+        if (cancelled) return;
+        setSmsLine(status.sms);
+        setImessageLine(status.imessage);
+        setWhatsappLine(status.whatsapp);
+        if (status.contacts.length) {
+          setPeople((prev) => {
+            const have = new Set(prev.map((person) => person.phone));
+            const extra = status.contacts
+              .filter((row) => row.phone && !have.has(row.phone))
+              .map((row) => ({
+                id: crypto.randomUUID(),
+                name: row.name,
+                phone: row.phone,
+              }));
+            return [...prev, ...extra].slice(0, PEOPLE_LIMIT);
+          });
+        }
       })
       .catch(() => {
-        if (!cancelled && !seed.connected) {
-          setLine({
-            connected: false,
-            from: FROM_NUMBER,
-            paused: false,
-            error: copy.offlineErr,
-          });
+        if (!cancelled) {
+          setSmsLine((prev) =>
+            prev.connected
+              ? prev
+              : { ...prev, error: copy.offlineErr },
+          );
         }
       });
     return () => {
       cancelled = true;
     };
-  }, [seed.connected]);
+  }, []);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -217,11 +277,23 @@ export function SmsStudio({ initialLine }: { initialLine?: LineStatus }) {
 
   useEffect(() => {
     if (!hydrated) return;
-    localStorage.setItem(DRAFT_KEY, JSON.stringify({ to, text }));
-  }, [hydrated, to, text]);
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({ to, text, channel: sendMode }));
+  }, [hydrated, to, text, sendMode]);
 
-  const from = line.from || FROM_NUMBER;
-  const issue = recipientsIssue(to);
+  const line =
+    sendMode === "imessage"
+      ? imessageLine
+      : sendMode === "whatsapp"
+        ? whatsappLine
+        : smsLine;
+  const from =
+    line.from ||
+    (sendMode === "imessage"
+      ? IMESSAGE_FROM
+      : sendMode === "whatsapp"
+        ? ""
+        : FROM_NUMBER);
+  const issue = recipientsIssue(to, sendMode);
   const recipients = parseRecipients(to);
   const primary = recipients[0] ?? null;
   const info = useMemo(
@@ -261,6 +333,28 @@ export function SmsStudio({ initialLine }: { initialLine?: LineStatus }) {
     !sending &&
     line.connected &&
     !line.paused;
+
+  useEffect(() => {
+    if (!primary || issue) {
+      setLookup(null);
+      return;
+    }
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      lookupService({ data: { number: primary } })
+        .then((result) => {
+          if (!cancelled && result.ok) setLookup(result.service);
+        })
+        .catch(() => {
+          if (!cancelled) setLookup(null);
+        });
+    }, 280);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [primary, issue]);
+
   const usedInSegment =
     info.segments === 0 ? 0 : info.perSegment - info.remaining;
   const meterPct =
@@ -292,6 +386,7 @@ export function SmsStudio({ initialLine }: { initialLine?: LineStatus }) {
   const whoLabel = recipients
     .map((phone) => names[phone] ?? formatPretty(phone))
     .join(", ");
+  const openChannel = channels.find((channel) => channel.id === channelId) ?? null;
 
   function flashShake() {
     setShake(true);
@@ -319,7 +414,7 @@ export function SmsStudio({ initialLine }: { initialLine?: LineStatus }) {
     const body = composeBody(text, settings.signature);
     try {
       const result = await sendSms({
-        data: { to: recipients, text: body, names },
+        data: { to: recipients, text: body, names, channel: sendMode },
       });
       if (result.ok) {
         const status: OutboxStatus = result.paused ? "paused" : "queued";
@@ -334,6 +429,7 @@ export function SmsStudio({ initialLine }: { initialLine?: LineStatus }) {
               messageId: result.messageId,
               at: Date.now(),
               segments: Math.max(1, info.segments),
+              channel: sendMode,
             },
             ...prev,
           ].slice(0, OUTBOX_LIMIT),
@@ -356,6 +452,7 @@ export function SmsStudio({ initialLine }: { initialLine?: LineStatus }) {
               error: result.error,
               at: Date.now(),
               segments: Math.max(1, info.segments),
+              channel: sendMode,
             },
             ...prev,
           ].slice(0, OUTBOX_LIMIT),
@@ -412,6 +509,40 @@ export function SmsStudio({ initialLine }: { initialLine?: LineStatus }) {
     toast.success(copy.savedTemplate);
   }
 
+  async function connectWhatsApp() {
+    setWaConnecting(true);
+    try {
+      const result = await saveWhatsApp({
+        data: {
+          token: waToken,
+          phoneNumberId: waPhoneId,
+          template: waTemplate,
+          language: "en_US",
+        },
+      });
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      setWhatsappLine({
+        connected: true,
+        from: result.from,
+        paused: false,
+      });
+      setSendMode("whatsapp");
+      setWaToken("");
+      toast.success(
+        result.verifiedName
+          ? `${copy.waConnected} · ${result.verifiedName}`
+          : copy.waConnected,
+      );
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : copy.sendFail);
+    } finally {
+      setWaConnecting(false);
+    }
+  }
+
   async function refreshStatus(item: OutboxItem) {
     if (!item.messageId) {
       toast.error(copy.noId);
@@ -420,7 +551,10 @@ export function SmsStudio({ initialLine }: { initialLine?: LineStatus }) {
     setCheckingId(item.id);
     try {
       const result = await getSmsStatus({
-        data: { messageId: item.messageId },
+        data: {
+          messageId: item.messageId,
+          channel: item.channel === "imessage" ? "imessage" : "sms",
+        },
       });
       if (!result.ok) {
         toast.error(result.error);
@@ -433,7 +567,10 @@ export function SmsStudio({ initialLine }: { initialLine?: LineStatus }) {
                 ...row,
                 status: result.status,
                 error: result.error ?? row.error,
-                segments: result.segmentCount ?? row.segments,
+                segments:
+                  "segmentCount" in result && result.segmentCount
+                    ? result.segmentCount
+                    : row.segments,
               }
             : row,
         ),
@@ -450,33 +587,63 @@ export function SmsStudio({ initialLine }: { initialLine?: LineStatus }) {
     setPulling(true);
     try {
       const result = await listSmsHistory();
-      if (!result.ok) {
-        toast.error(result.error);
-        return;
-      }
       let added = 0;
       setOutbox((prev) => {
         const have = new Set(
           prev.map((item) => item.messageId).filter(Boolean),
         );
         const extra: OutboxItem[] = [];
-        for (const remote of result.messages) {
-          if (have.has(remote.id)) continue;
-          added += 1;
-          extra.push({
-            id: remote.id,
-            to: remote.to[0] ?? "",
-            recipients: remote.to,
-            text: remote.text,
-            status: remote.paused ? "paused" : "queued",
-            messageId: remote.id,
-            at: Date.parse(remote.createdAt) || Date.now(),
-            segments: 1,
-          });
+        if (result.sms.ok) {
+          for (const remote of result.sms.messages) {
+            if (have.has(remote.id)) continue;
+            have.add(remote.id);
+            added += 1;
+            extra.push({
+              id: remote.id,
+              to: remote.to[0] ?? "",
+              recipients: remote.to,
+              text: remote.text,
+              status: remote.paused ? "paused" : "queued",
+              messageId: remote.id,
+              at: Date.parse(remote.createdAt) || Date.now(),
+              segments: 1,
+              channel: "sms",
+            });
+          }
         }
+        if (result.imessage.ok) {
+          for (const remote of result.imessage.messages) {
+            if (have.has(remote.id)) continue;
+            have.add(remote.id);
+            added += 1;
+            extra.push({
+              id: remote.id,
+              to: remote.to,
+              recipients: [remote.to],
+              text: remote.text,
+              status:
+                remote.status.toUpperCase() === "DELIVERED"
+                  ? "sent"
+                  : remote.status.toUpperCase() === "ERROR"
+                    ? "failed"
+                    : "queued",
+              messageId: remote.id,
+              at: Date.parse(remote.createdAt) || Date.now(),
+              segments: 1,
+              channel: "imessage",
+            });
+          }
+        }
+        extra.sort((a, b) => b.at - a.at);
         return [...extra, ...prev].slice(0, OUTBOX_LIMIT);
       });
-      toast.success(copy.historyOk(added));
+      const err = !result.sms.ok
+        ? result.sms.error
+        : !result.imessage.ok
+          ? result.imessage.error
+          : null;
+      if (err && added === 0) toast.error(err);
+      else toast.success(copy.historyOk(added));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : copy.historyFail);
     } finally {
@@ -532,13 +699,41 @@ export function SmsStudio({ initialLine }: { initialLine?: LineStatus }) {
           >
             <Settings />
           </Button>
-          <LineBadge line={line} from={from} />
+          <LineBadge line={line} from={from} mode={sendMode} />
         </div>
       </header>
 
       <p className="stagger-in mt-4 max-w-lg text-sm leading-relaxed text-muted-foreground">
-        {copy.tagline(formatPretty(from))}
+        {copy.tagline(formatPretty(from), sendMode)}
       </p>
+
+      <section className="stagger-in mt-6" aria-labelledby="channels-heading">
+        <div className="flex items-end justify-between gap-3">
+          <h2 id="channels-heading" className="text-xs font-medium tracking-widest text-muted-foreground">
+            {copy.channels}
+          </h2>
+          <p className="hidden text-xs text-subtle sm:block">{copy.channelsHint}</p>
+        </div>
+        <div className="mt-3 -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+          {channels.map((channel) => {
+            const status =
+              channel.id === "whatsapp" && whatsappLine.connected
+                ? "live"
+                : channel.status;
+            return (
+            <button
+              key={channel.id}
+              type="button"
+              onClick={() => setChannelId(channel.id)}
+              className="flex min-h-11 shrink-0 items-center gap-2 rounded-full bg-card px-4 py-2 text-left shadow-border"
+            >
+              <span className="text-sm text-foreground">{channel.name}</span>
+              <ChannelStatusMark status={status} />
+            </button>
+            );
+          })}
+        </div>
+      </section>
 
       <div className="mt-8 grid flex-1 gap-5 lg:grid-cols-5">
         <section
@@ -558,6 +753,51 @@ export function SmsStudio({ initialLine }: { initialLine?: LineStatus }) {
             </span>
           </div>
 
+          <div className="mt-5 flex gap-2">
+            <button
+              type="button"
+              onClick={() => setSendMode("imessage")}
+              className={cn(
+                "h-11 flex-1 rounded-full px-4 text-sm shadow-border",
+                sendMode === "imessage"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-surface-2 text-foreground",
+              )}
+            >
+              {copy.viaIMessage}
+            </button>
+            <button
+              type="button"
+              onClick={() => setSendMode("sms")}
+              className={cn(
+                "h-11 flex-1 rounded-full px-4 text-sm shadow-border",
+                sendMode === "sms"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-surface-2 text-foreground",
+              )}
+            >
+              {copy.viaSms}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (!whatsappLine.connected) {
+                  setSettingsOpen(true);
+                  return;
+                }
+                setSendMode("whatsapp");
+              }}
+              className={cn(
+                "h-11 flex-1 rounded-full px-4 text-sm shadow-border",
+                sendMode === "whatsapp"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-surface-2 text-foreground",
+              )}
+            >
+              {copy.viaWhatsapp}
+            </button>
+          </div>
+
           <div className="mt-6 space-y-5">
             <div className="space-y-2">
               <Label htmlFor="to">{copy.to}</Label>
@@ -567,7 +807,11 @@ export function SmsStudio({ initialLine }: { initialLine?: LineStatus }) {
                 type="tel"
                 inputMode="tel"
                 autoComplete="tel"
-                placeholder={copy.toPlaceholder}
+                placeholder={
+                  sendMode === "sms"
+                    ? copy.toPlaceholderSms
+                    : copy.toPlaceholder
+                }
                 value={to}
                 onChange={(e) => setTo(e.target.value)}
                 aria-invalid={Boolean(to) && Boolean(issue)}
@@ -579,8 +823,12 @@ export function SmsStudio({ initialLine }: { initialLine?: LineStatus }) {
                     : recipients.length > 1
                       ? whoLabel
                       : primary
-                        ? `${known ? `${known.name} · ` : ""}${formatPretty(primary)}`
-                        : copy.toHint}
+                        ? `${known ? `${known.name} · ` : ""}${formatPretty(primary)}${lookup ? ` · ${lookup}` : ""}`
+                        : sendMode === "sms"
+                          ? copy.toHintSms
+                          : sendMode === "whatsapp"
+                            ? copy.toHintWhatsapp
+                            : copy.toHint}
                 </p>
                 <button
                   type="button"
@@ -764,7 +1012,13 @@ export function SmsStudio({ initialLine }: { initialLine?: LineStatus }) {
                 </>
               ) : (
                 <>
-                  {info.segments > 1 ? copy.sendN(info.segments) : copy.send}
+                  {info.segments > 1
+                    ? copy.sendN(info.segments)
+                    : sendMode === "imessage"
+                      ? copy.sendIMessage
+                      : sendMode === "whatsapp"
+                        ? copy.sendWhatsapp
+                        : copy.send}
                   <ArrowUpRight />
                 </>
               )}
@@ -838,7 +1092,16 @@ export function SmsStudio({ initialLine }: { initialLine?: LineStatus }) {
                       <p className="font-mono text-xs text-foreground">
                         {displayTo(item)}
                       </p>
-                      <StatusPill status={item.status} />
+                      <div className="flex items-center gap-1">
+                        <Badge variant="queued">
+                          {item.channel === "imessage"
+                            ? copy.viaIMessage
+                            : item.channel === "whatsapp"
+                              ? copy.viaWhatsapp
+                              : copy.viaSms}
+                        </Badge>
+                        <StatusPill status={item.status} />
+                      </div>
                     </div>
                     <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
                       {item.text}
@@ -917,6 +1180,7 @@ export function SmsStudio({ initialLine }: { initialLine?: LineStatus }) {
                     whoLabel,
                     Math.max(1, info.segments),
                     formatPretty(from),
+                    sendMode,
                   )
                 : copy.validNumber}
             </AlertDialogDescription>
@@ -1042,6 +1306,68 @@ export function SmsStudio({ initialLine }: { initialLine?: LineStatus }) {
                 }
               />
             </label>
+            <Separator />
+            <div className="space-y-3">
+              <div>
+                <h3 className="text-sm font-medium text-foreground">
+                  {copy.waSetup}
+                </h3>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  {copy.waSetupDesc}
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="wa-phone-id">{copy.waPhoneId}</Label>
+                <Input
+                  id="wa-phone-id"
+                  name="wa-phone-id"
+                  placeholder="106540352242922"
+                  value={waPhoneId}
+                  onChange={(e) => setWaPhoneId(e.target.value)}
+                  className="font-mono tracking-normal"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="wa-token">{copy.waToken}</Label>
+                <Input
+                  id="wa-token"
+                  name="wa-token"
+                  type="password"
+                  autoComplete="off"
+                  placeholder="EAA…"
+                  value={waToken}
+                  onChange={(e) => setWaToken(e.target.value)}
+                  className="font-sans tracking-normal"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="wa-template">{copy.waTemplate}</Label>
+                <Input
+                  id="wa-template"
+                  name="wa-template"
+                  placeholder="hello_world"
+                  value={waTemplate}
+                  onChange={(e) => setWaTemplate(e.target.value)}
+                  className="font-mono tracking-normal"
+                />
+              </div>
+              <Button
+                type="button"
+                className="w-full"
+                disabled={waConnecting}
+                onClick={() => void connectWhatsApp()}
+              >
+                {waConnecting ? copy.waConnecting : copy.waConnect}
+              </Button>
+              {whatsappLine.connected ? (
+                <p className="text-xs text-muted-foreground">
+                  {copy.waConnected}
+                  {whatsappLine.from ? ` · ${formatPretty(whatsappLine.from)}` : ""}
+                </p>
+              ) : whatsappLine.error ? (
+                <p className="text-xs text-bad">{whatsappLine.error}</p>
+              ) : null}
+            </div>
           </div>
         </DialogContent>
       </Dialog>
@@ -1068,11 +1394,63 @@ export function SmsStudio({ initialLine }: { initialLine?: LineStatus }) {
           </div>
         </DialogContent>
       </Dialog>
+
+      <Dialog
+        open={Boolean(openChannel)}
+        onOpenChange={(open) => {
+          if (!open) setChannelId(null);
+        }}
+      >
+        <DialogContent>
+          {openChannel ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>{openChannel.name}</DialogTitle>
+                <DialogDescription>{openChannel.summary}</DialogDescription>
+              </DialogHeader>
+              <div className="mt-4 space-y-4">
+                <ChannelStatusMark status={openChannel.status} />
+                <p className="text-sm leading-relaxed text-foreground">
+                  {openChannel.detail}
+                </p>
+                <div className="rounded-md bg-surface-2 px-3 py-3 shadow-border">
+                  <p className="text-xs font-medium tracking-widest text-muted-foreground">
+                    {copy.channelNeeds}
+                  </p>
+                  <p className="mt-2 text-sm leading-relaxed text-foreground">
+                    {openChannel.needs}
+                  </p>
+                </div>
+                {openChannel.id === "whatsapp" ? (
+                  <Button
+                    type="button"
+                    className="w-full"
+                    onClick={() => {
+                      setChannelId(null);
+                      setSettingsOpen(true);
+                    }}
+                  >
+                    {copy.waSetup}
+                  </Button>
+                ) : null}
+              </div>
+            </>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-function LineBadge({ line, from }: { line: LineStatus; from: string }) {
+function LineBadge({
+  line,
+  from,
+  mode,
+}: {
+  line: LineStatus;
+  from: string;
+  mode: SendMode;
+}) {
   if (line.paused) {
     return (
       <Badge variant="warn" className="whitespace-nowrap">
@@ -1084,7 +1462,11 @@ function LineBadge({ line, from }: { line: LineStatus; from: string }) {
     return (
       <Badge variant="live" className="whitespace-nowrap">
         <span className="pulse-dot" aria-hidden="true" />
-        {copy.live}
+        {mode === "imessage"
+          ? copy.viaIMessage
+          : mode === "whatsapp"
+            ? copy.viaWhatsapp
+            : copy.live}
         <span className="hidden sm:inline">· {formatPretty(from)}</span>
       </Badge>
     );
@@ -1094,6 +1476,29 @@ function LineBadge({ line, from }: { line: LineStatus; from: string }) {
       {line.error ? copy.offline : copy.connecting}
     </Badge>
   );
+}
+
+function ChannelStatusMark({ status }: { status: ChannelStatus }) {
+  const label =
+    status === "live"
+      ? copy.channelLive
+      : status === "provision"
+        ? copy.channelProvision
+        : status === "closed"
+          ? copy.channelClosed
+          : copy.channelPartner;
+  if (status === "live") {
+    return (
+      <Badge variant="live" className="whitespace-nowrap">
+        <span className="pulse-dot" aria-hidden="true" />
+        {label}
+      </Badge>
+    );
+  }
+  if (status === "provision") {
+    return <Badge variant="queued">{label}</Badge>;
+  }
+  return <Badge variant="warn">{label}</Badge>;
 }
 
 function StatusPill({ status }: { status: OutboxStatus }) {

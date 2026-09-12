@@ -2,7 +2,9 @@ import { copy } from "./copy";
 
 export const RECIPIENT_LIMIT = 8;
 
-/** Normalize user input to E.164. MailerSend SMS delivers to US and Canada only. */
+export type SendMode = "sms" | "imessage" | "whatsapp";
+
+/** Normalize user input to E.164. */
 export function normalizeE164(raw: string): string | null {
   const trimmed = raw.trim();
   if (!trimmed) return null;
@@ -15,6 +17,8 @@ export function normalizeE164(raw: string): string | null {
     const only = digits.replace(/\D/g, "");
     if (only.length === 10) digits = `+1${only}`;
     else if (only.length === 11 && only.startsWith("1")) digits = `+${only}`;
+    else if (only.length === 9 && /^[67]\d{8}$/.test(only))
+      digits = `+420${only}`;
     else if (only.length > 0) digits = `+${only}`;
     else return null;
   }
@@ -28,8 +32,10 @@ export function isUsOrCanada(e164: string): boolean {
 }
 
 export function formatPretty(e164: string): string {
-  const m = e164.match(/^\+1(\d{3})(\d{3})(\d{4})$/);
-  if (m) return `+1 ${m[1]} ${m[2]} ${m[3]}`;
+  const us = e164.match(/^\+1(\d{3})(\d{3})(\d{4})$/);
+  if (us) return `+1 ${us[1]} ${us[2]} ${us[3]}`;
+  const cz = e164.match(/^\+420(\d{3})(\d{3})(\d{3})$/);
+  if (cz) return `+420 ${cz[1]} ${cz[2]} ${cz[3]}`;
   return e164;
 }
 
@@ -46,7 +52,10 @@ export function parseRecipients(raw: string): string[] {
   return out;
 }
 
-export function recipientsIssue(raw: string): string | null {
+export function recipientsIssue(
+  raw: string,
+  mode: SendMode = "sms",
+): string | null {
   const value = raw.trim();
   if (!value) return null;
   const parts = raw
@@ -57,7 +66,7 @@ export function recipientsIssue(raw: string): string | null {
   for (const part of parts) {
     const e164 = normalizeE164(part);
     if (!e164) return copy.invalidNumber;
-    if (!isUsOrCanada(e164)) return copy.usCaOnly;
+    if (mode === "sms" && !isUsOrCanada(e164)) return copy.usCaOnly;
   }
   if (parseRecipients(raw).length === 0) return copy.oneInvalid;
   return null;

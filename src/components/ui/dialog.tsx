@@ -43,6 +43,7 @@ function DialogContent({
         data-slot="dialog-content"
         className={cn(
           "fixed inset-x-5 top-1/2 z-50 mx-auto w-auto max-w-md -translate-y-1/2 rounded-2xl bg-card p-5 text-card-foreground shadow-border",
+          "max-h-[min(90dvh,42rem)] overflow-y-auto",
           "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
           className,
         )}

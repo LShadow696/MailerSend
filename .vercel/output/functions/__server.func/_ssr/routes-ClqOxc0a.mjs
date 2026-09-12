@@ -1,17 +1,59 @@
 import { o as __toESM } from "../_runtime.mjs";
 import { C as require_jsx_runtime, _ as Slot, a as Overlay2, c as Title2, d as DialogContent$1, f as DialogDescription$1, h as DialogTitle$1, i as Description2, l as Dialog$1, m as DialogPortal$1, n as Cancel, o as Portal2, p as DialogOverlay$1, r as Content2, s as Root2, t as Action, u as DialogClose, w as require_react } from "../_libs/@radix-ui/react-alert-dialog+[...].mjs";
-import { a as SETTINGS_KEY, c as copy, d as nameTokensOk, h as statusLabel, i as PEOPLE_KEY, l as formatPretty, m as recipientsIssue, n as FROM_NUMBER, o as SMS_MAX_CHARS, p as parseRecipients, r as OUTBOX_KEY, s as TEMPLATES_KEY, t as DRAFT_KEY } from "./phone-CwM1DhFV.mjs";
+import { a as PEOPLE_KEY, c as TEMPLATES_KEY, f as nameTokensOk, g as statusLabel, h as recipientsIssue, i as OUTBOX_KEY, l as copy, m as parseRecipients, n as FROM_NUMBER, o as SETTINGS_KEY, r as IMESSAGE_FROM, s as SMS_MAX_CHARS, t as DRAFT_KEY, u as formatPretty } from "./phone-osxGNV4O.mjs";
 import { a as Settings, c as Plus, d as Copy, f as BookmarkPlus, i as Trash2, l as LoaderCircle, n as UserPlus, o as RotateCcw, p as ArrowUpRight, s as RefreshCw, t as X, u as History } from "../_libs/lucide-react.mjs";
-import { a as listSmsHistory, i as getSmsStatus, n as Route, o as sendSms, r as getSmsLine } from "./router-DioctALd.mjs";
+import { a as listSmsHistory, c as sendSms, i as getSmsStatus, l as FALLBACK, n as Route, o as lookupService, r as getChannelStatus, s as saveWhatsApp } from "./router-2Q6k1XFd.mjs";
 import { n as formatDistanceToNow, r as startOfDay, t as cs } from "../_libs/date-fns.mjs";
 import { n as toast, t as Toaster } from "../_libs/sonner.mjs";
 import { n as clsx, t as cva } from "../_libs/class-variance-authority+clsx.mjs";
 import { t as twMerge } from "../_libs/tailwind-merge.mjs";
 import { t as Root } from "../_libs/radix-ui__react-label.mjs";
 import { n as SwitchThumb, t as Switch$1 } from "../_libs/@radix-ui/react-switch+[...].mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/routes-BBUNX7fe.js
+//#region node_modules/.nitro/vite/services/ssr/assets/routes-ClqOxc0a.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
+var channels = [
+	{
+		id: "imessage",
+		name: "iMessage",
+		status: "live",
+		summary: "Sendblue · +1 917 625 7748",
+		detail: "Linka je online. Sendblue pošle modrou bublinu, když to číslo iMessage umí. Jinak spadne na RCS nebo SMS. Už jste ověřili české číslo na této lince.",
+		needs: "Nic dalšího. Klíč je na serveru, číslo +1 917 625 7748 je připojené."
+	},
+	{
+		id: "sms",
+		name: "SMS",
+		status: "live",
+		summary: "MailerSend · USA a Kanada",
+		detail: "Toll-free +1 833 256 2129 pořád posílá přes MailerSend. Jen USA a Kanada. Pro Česko použijte iMessage.",
+		needs: "Nic dalšího. MailerSend klíč a číslo jsou připojené."
+	},
+	{
+		id: "whatsapp",
+		name: "WhatsApp",
+		status: "provision",
+		summary: "Nastavte Cloud API v Nastavení",
+		detail: "MailerSend WhatsApp endpoint existuje, ale váš token nemá oprávnění (403). Dřívější klíč WAA Meta Graph API nepřijala. Potřebujete: 1) Meta Business + WABA, 2) ověřené číslo, 3) Phone Number ID, 4) systémový token začínající EAA. Volný text na nový kontakt nejde — Meta chce schválenou šablonu.",
+		needs: "Phone Number ID a token EAA z developers.facebook.com → WhatsApp → API Setup."
+	},
+	{
+		id: "rcs",
+		name: "RCS",
+		status: "partner",
+		summary: "Přes Sendblue na Android",
+		detail: "Samostatný firemní RCS agent (logo, karty, ověřený odesílatel) tu není. Sendblue ale na Androidu zkusí RCS a jinak SMS. To není totéž jako Google RBM.",
+		needs: "Pro branded RCS: Twilio, Sinch nebo Infobip a ověřený agent."
+	},
+	{
+		id: "telegram",
+		name: "Telegram",
+		status: "partner",
+		summary: "Oficiální Bot API, zdarma",
+		detail: "Telegram Bot API je veřejné a v Česku běžné. Příjemce musí bota nejdřív spustit.",
+		needs: "Token od BotFather."
+	}
+];
 var GSM_BASIC = "@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !\"#¤%&'()*+,-./0123456789:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà";
 var GSM_EXT = "^{}\\[~]|€";
 function gsmUnits(text) {
@@ -175,7 +217,7 @@ function DialogOverlay({ className, ...props }) {
 function DialogContent({ className, children, ...props }) {
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DialogPortal, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DialogOverlay, {}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DialogContent$1, {
 		"data-slot": "dialog-content",
-		className: cn("fixed inset-x-5 top-1/2 z-50 mx-auto w-auto max-w-md -translate-y-1/2 rounded-2xl bg-card p-5 text-card-foreground shadow-border", "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0", className),
+		className: cn("fixed inset-x-5 top-1/2 z-50 mx-auto w-auto max-w-md -translate-y-1/2 rounded-2xl bg-card p-5 text-card-foreground shadow-border", "max-h-[min(90dvh,42rem)] overflow-y-auto", "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0", className),
 		...props,
 		children: [children, /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DialogClose, {
 			className: "absolute top-3 right-3 grid size-11 place-items-center rounded-md text-muted-foreground hover:text-foreground",
@@ -261,24 +303,44 @@ function composeBody(text, signature) {
 	if (!sig || body.endsWith(sig)) return body;
 	return `${body}\n${sig}`;
 }
-var FALLBACK_LINE = {
-	connected: false,
-	from: FROM_NUMBER,
-	paused: false
+var FALLBACK_LINES = {
+	sms: {
+		connected: false,
+		from: FROM_NUMBER,
+		paused: false
+	},
+	imessage: {
+		connected: false,
+		from: IMESSAGE_FROM,
+		paused: false
+	},
+	whatsapp: {
+		connected: false,
+		from: "",
+		paused: false
+	},
+	contacts: []
 };
 var DEFAULT_SETTINGS = {
 	signature: "",
 	confirm: true
 };
-function SmsStudio({ initialLine }) {
-	const seed = initialLine ?? FALLBACK_LINE;
-	const [line, setLine] = (0, import_react.useState)(seed);
+function SmsStudio({ initial }) {
+	const seed = initial ?? FALLBACK_LINES;
+	const [smsLine, setSmsLine] = (0, import_react.useState)(seed.sms);
+	const [imessageLine, setImessageLine] = (0, import_react.useState)(seed.imessage);
+	const [whatsappLine, setWhatsappLine] = (0, import_react.useState)(seed.whatsapp);
+	const [sendMode, setSendMode] = (0, import_react.useState)("imessage");
 	const [to, setTo] = (0, import_react.useState)("");
 	const [text, setText] = (0, import_react.useState)("");
 	const [sending, setSending] = (0, import_react.useState)(false);
 	const [shake, setShake] = (0, import_react.useState)(false);
 	const [outbox, setOutbox] = (0, import_react.useState)([]);
-	const [people, setPeople] = (0, import_react.useState)([]);
+	const [people, setPeople] = (0, import_react.useState)(() => (seed.contacts ?? []).map((row) => ({
+		id: row.phone,
+		name: row.name,
+		phone: row.phone
+	})));
 	const [templates, setTemplates] = (0, import_react.useState)([]);
 	const [settings, setSettings] = (0, import_react.useState)(DEFAULT_SETTINGS);
 	const [hydrated, setHydrated] = (0, import_react.useState)(false);
@@ -289,16 +351,27 @@ function SmsStudio({ initialLine }) {
 	const [personName, setPersonName] = (0, import_react.useState)("");
 	const [templateTitle, setTemplateTitle] = (0, import_react.useState)("");
 	const [query, setQuery] = (0, import_react.useState)("");
+	const [channelId, setChannelId] = (0, import_react.useState)(null);
 	const [checkingId, setCheckingId] = (0, import_react.useState)(null);
 	const [pulling, setPulling] = (0, import_react.useState)(false);
+	const [lookup, setLookup] = (0, import_react.useState)(null);
+	const [waPhoneId, setWaPhoneId] = (0, import_react.useState)("");
+	const [waToken, setWaToken] = (0, import_react.useState)("");
+	const [waTemplate, setWaTemplate] = (0, import_react.useState)("hello_world");
+	const [waConnecting, setWaConnecting] = (0, import_react.useState)(false);
 	(0, import_react.useEffect)(() => {
 		const draft = readJson(DRAFT_KEY, {});
 		setTo(typeof draft.to === "string" ? draft.to : "");
 		setText(typeof draft.text === "string" ? draft.text : "");
+		if (draft.channel === "sms" || draft.channel === "imessage" || draft.channel === "whatsapp") setSendMode(draft.channel);
 		const storedOutbox = readJson(OUTBOX_KEY, []);
 		setOutbox(Array.isArray(storedOutbox) ? storedOutbox : []);
 		const storedPeople = readJson(PEOPLE_KEY, []);
-		setPeople(Array.isArray(storedPeople) ? storedPeople : []);
+		if (Array.isArray(storedPeople) && storedPeople.length) setPeople((prev) => {
+			const have = new Set(storedPeople.map((person) => person.phone));
+			const extra = prev.filter((person) => !have.has(person.phone));
+			return [...storedPeople, ...extra].slice(0, 16);
+		});
 		const storedTemplates = readJson(TEMPLATES_KEY, []);
 		setTemplates(Array.isArray(storedTemplates) ? storedTemplates : []);
 		const storedSettings = readJson(SETTINGS_KEY, DEFAULT_SETTINGS);
@@ -308,20 +381,30 @@ function SmsStudio({ initialLine }) {
 		});
 		setHydrated(true);
 		let cancelled = false;
-		getSmsLine().then((status) => {
-			if (!cancelled) setLine(status);
+		getChannelStatus().then((status) => {
+			if (cancelled) return;
+			setSmsLine(status.sms);
+			setImessageLine(status.imessage);
+			setWhatsappLine(status.whatsapp);
+			if (status.contacts.length) setPeople((prev) => {
+				const have = new Set(prev.map((person) => person.phone));
+				const extra = status.contacts.filter((row) => row.phone && !have.has(row.phone)).map((row) => ({
+					id: crypto.randomUUID(),
+					name: row.name,
+					phone: row.phone
+				}));
+				return [...prev, ...extra].slice(0, 16);
+			});
 		}).catch(() => {
-			if (!cancelled && !seed.connected) setLine({
-				connected: false,
-				from: FROM_NUMBER,
-				paused: false,
+			if (!cancelled) setSmsLine((prev) => prev.connected ? prev : {
+				...prev,
 				error: copy.offlineErr
 			});
 		});
 		return () => {
 			cancelled = true;
 		};
-	}, [seed.connected]);
+	}, []);
 	(0, import_react.useEffect)(() => {
 		if (!hydrated) return;
 		localStorage.setItem(OUTBOX_KEY, JSON.stringify(outbox.slice(0, 40)));
@@ -342,15 +425,18 @@ function SmsStudio({ initialLine }) {
 		if (!hydrated) return;
 		localStorage.setItem(DRAFT_KEY, JSON.stringify({
 			to,
-			text
+			text,
+			channel: sendMode
 		}));
 	}, [
 		hydrated,
 		to,
-		text
+		text,
+		sendMode
 	]);
-	const from = line.from || "+18332562129";
-	const issue = recipientsIssue(to);
+	const line = sendMode === "imessage" ? imessageLine : sendMode === "whatsapp" ? whatsappLine : smsLine;
+	const from = line.from || (sendMode === "imessage" ? "+19176257748" : sendMode === "whatsapp" ? "" : "+18332562129");
+	const issue = recipientsIssue(to, sendMode);
 	const recipients = parseRecipients(to);
 	const primary = recipients[0] ?? null;
 	const info = (0, import_react.useMemo)(() => analyzeMessage(composeBody(text, settings.signature)), [text, settings.signature]);
@@ -376,6 +462,24 @@ function SmsStudio({ initialLine }) {
 	}, [outbox, people]);
 	const nameReady = !text.includes("{{name}}") || recipients.every((phone) => Boolean(names[phone]));
 	const canSend = recipients.length > 0 && !issue && text.trim().length > 0 && !info.overLimit && nameTokensOk(text) && nameReady && !sending && line.connected && !line.paused;
+	(0, import_react.useEffect)(() => {
+		if (!primary || issue) {
+			setLookup(null);
+			return;
+		}
+		let cancelled = false;
+		const timer = window.setTimeout(() => {
+			lookupService({ data: { number: primary } }).then((result) => {
+				if (!cancelled && result.ok) setLookup(result.service);
+			}).catch(() => {
+				if (!cancelled) setLookup(null);
+			});
+		}, 280);
+		return () => {
+			cancelled = true;
+			window.clearTimeout(timer);
+		};
+	}, [primary, issue]);
 	const usedInSegment = info.segments === 0 ? 0 : info.perSegment - info.remaining;
 	const meterPct = info.segments === 0 ? 0 : Math.min(100, Math.round(usedInSegment / info.perSegment * 100));
 	const filteredOutbox = (0, import_react.useMemo)(() => {
@@ -399,6 +503,7 @@ function SmsStudio({ initialLine }) {
 		};
 	}, [outbox]);
 	const whoLabel = recipients.map((phone) => names[phone] ?? formatPretty(phone)).join(", ");
+	const openChannel = channels.find((channel) => channel.id === channelId) ?? null;
 	function flashShake() {
 		setShake(true);
 		window.setTimeout(() => setShake(false), 420);
@@ -425,7 +530,8 @@ function SmsStudio({ initialLine }) {
 			const result = await sendSms({ data: {
 				to: recipients,
 				text: body,
-				names
+				names,
+				channel: sendMode
 			} });
 			if (result.ok) {
 				const status = result.paused ? "paused" : "queued";
@@ -437,7 +543,8 @@ function SmsStudio({ initialLine }) {
 					status,
 					messageId: result.messageId,
 					at: Date.now(),
-					segments: Math.max(1, info.segments)
+					segments: Math.max(1, info.segments),
+					channel: sendMode
 				}, ...prev].slice(0, 40));
 				toast.success(status === "paused" ? copy.pausedErr : `${copy.queued} · ${whoLabel}`);
 				setText("");
@@ -450,7 +557,8 @@ function SmsStudio({ initialLine }) {
 					status: "failed",
 					error: result.error,
 					at: Date.now(),
-					segments: Math.max(1, info.segments)
+					segments: Math.max(1, info.segments),
+					channel: sendMode
 				}, ...prev].slice(0, 40));
 				toast.error(result.error);
 				flashShake();
@@ -501,6 +609,33 @@ function SmsStudio({ initialLine }) {
 		setTemplateOpen(false);
 		toast.success(copy.savedTemplate);
 	}
+	async function connectWhatsApp() {
+		setWaConnecting(true);
+		try {
+			const result = await saveWhatsApp({ data: {
+				token: waToken,
+				phoneNumberId: waPhoneId,
+				template: waTemplate,
+				language: "en_US"
+			} });
+			if (!result.ok) {
+				toast.error(result.error);
+				return;
+			}
+			setWhatsappLine({
+				connected: true,
+				from: result.from,
+				paused: false
+			});
+			setSendMode("whatsapp");
+			setWaToken("");
+			toast.success(result.verifiedName ? `${copy.waConnected} · ${result.verifiedName}` : copy.waConnected);
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : copy.sendFail);
+		} finally {
+			setWaConnecting(false);
+		}
+	}
 	async function refreshStatus(item) {
 		if (!item.messageId) {
 			toast.error(copy.noId);
@@ -508,7 +643,10 @@ function SmsStudio({ initialLine }) {
 		}
 		setCheckingId(item.id);
 		try {
-			const result = await getSmsStatus({ data: { messageId: item.messageId } });
+			const result = await getSmsStatus({ data: {
+				messageId: item.messageId,
+				channel: item.channel === "imessage" ? "imessage" : "sms"
+			} });
 			if (!result.ok) {
 				toast.error(result.error);
 				return;
@@ -517,7 +655,7 @@ function SmsStudio({ initialLine }) {
 				...row,
 				status: result.status,
 				error: result.error ?? row.error,
-				segments: result.segmentCount ?? row.segments
+				segments: "segmentCount" in result && result.segmentCount ? result.segmentCount : row.segments
 			} : row));
 			toast.success(copy.updated(statusLabel[result.status]));
 		} catch (err) {
@@ -530,16 +668,13 @@ function SmsStudio({ initialLine }) {
 		setPulling(true);
 		try {
 			const result = await listSmsHistory();
-			if (!result.ok) {
-				toast.error(result.error);
-				return;
-			}
 			let added = 0;
 			setOutbox((prev) => {
 				const have = new Set(prev.map((item) => item.messageId).filter(Boolean));
 				const extra = [];
-				for (const remote of result.messages) {
+				if (result.sms.ok) for (const remote of result.sms.messages) {
 					if (have.has(remote.id)) continue;
+					have.add(remote.id);
 					added += 1;
 					extra.push({
 						id: remote.id,
@@ -549,12 +684,32 @@ function SmsStudio({ initialLine }) {
 						status: remote.paused ? "paused" : "queued",
 						messageId: remote.id,
 						at: Date.parse(remote.createdAt) || Date.now(),
-						segments: 1
+						segments: 1,
+						channel: "sms"
 					});
 				}
+				if (result.imessage.ok) for (const remote of result.imessage.messages) {
+					if (have.has(remote.id)) continue;
+					have.add(remote.id);
+					added += 1;
+					extra.push({
+						id: remote.id,
+						to: remote.to,
+						recipients: [remote.to],
+						text: remote.text,
+						status: remote.status.toUpperCase() === "DELIVERED" ? "sent" : remote.status.toUpperCase() === "ERROR" ? "failed" : "queued",
+						messageId: remote.id,
+						at: Date.parse(remote.createdAt) || Date.now(),
+						segments: 1,
+						channel: "imessage"
+					});
+				}
+				extra.sort((a, b) => b.at - a.at);
 				return [...extra, ...prev].slice(0, 40);
 			});
-			toast.success(copy.historyOk(added));
+			const err = !result.sms.ok ? result.sms.error : !result.imessage.ok ? result.imessage.error : null;
+			if (err && added === 0) toast.error(err);
+			else toast.success(copy.historyOk(added));
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : copy.historyFail);
 		} finally {
@@ -604,195 +759,257 @@ function SmsStudio({ initialLine }) {
 						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Settings, {})
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LineBadge, {
 						line,
-						from
+						from,
+						mode: sendMode
 					})]
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 				className: "stagger-in mt-4 max-w-lg text-sm leading-relaxed text-muted-foreground",
-				children: copy.tagline(formatPretty(from))
+				children: copy.tagline(formatPretty(from), sendMode)
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+				className: "stagger-in mt-6",
+				"aria-labelledby": "channels-heading",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "flex items-end justify-between gap-3",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+						id: "channels-heading",
+						className: "text-xs font-medium tracking-widest text-muted-foreground",
+						children: copy.channels
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "hidden text-xs text-subtle sm:block",
+						children: copy.channelsHint
+					})]
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+					className: "mt-3 -mx-1 flex gap-2 overflow-x-auto px-1 pb-1",
+					children: channels.map((channel) => {
+						const status = channel.id === "whatsapp" && whatsappLine.connected ? "live" : channel.status;
+						return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+							type: "button",
+							onClick: () => setChannelId(channel.id),
+							className: "flex min-h-11 shrink-0 items-center gap-2 rounded-full bg-card px-4 py-2 text-left shadow-border",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+								className: "text-sm text-foreground",
+								children: channel.name
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChannelStatusMark, { status })]
+						}, channel.id);
+					})
+				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				className: "mt-8 grid flex-1 gap-5 lg:grid-cols-5",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
 					className: cn("stagger-in rounded-2xl bg-card p-5 shadow-border lg:col-span-3", shake && "animate-shake"),
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "flex items-end justify-between gap-3",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
-							className: "font-display text-2xl italic tracking-tight",
-							children: copy.write
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-							className: "pb-1 font-mono text-xs text-subtle",
-							children: info.segments === 0 ? copy.max : copy.smsCount(info.segments, info.encoding)
-						})]
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "mt-6 space-y-5",
-						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "space-y-2",
-								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
-										htmlFor: "to",
-										children: copy.to
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-										id: "to",
-										name: "to",
-										type: "tel",
-										inputMode: "tel",
-										autoComplete: "tel",
-										placeholder: copy.toPlaceholder,
-										value: to,
-										onChange: (e) => setTo(e.target.value),
-										"aria-invalid": Boolean(to) && Boolean(issue)
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-										className: "flex flex-wrap items-center justify-between gap-2",
-										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-											className: "text-xs text-subtle",
-											children: issue ? issue : recipients.length > 1 ? whoLabel : primary ? `${known ? `${known.name} · ` : ""}${formatPretty(primary)}` : copy.toHint
-										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-											type: "button",
-											className: "text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline",
-											onClick: () => setTo(from),
-											children: copy.textThisLine
-										})]
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-										className: "-mx-1 flex gap-2 overflow-x-auto px-1 pt-1",
-										children: [
-											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
-												type: "button",
-												variant: "outline",
-												size: "sm",
-												className: "h-11 shrink-0 rounded-full",
-												onClick: () => {
-													setPersonName(known?.name ?? "");
-													setPeopleOpen(true);
-												},
-												children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(UserPlus, {}), copy.people]
-											}),
-											people.map((person) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-												type: "button",
-												onClick: () => setTo(person.phone),
-												className: cn("h-11 shrink-0 rounded-full px-4 text-sm shadow-border", primary === person.phone ? "bg-primary text-primary-foreground" : "bg-surface-2 text-foreground"),
-												children: person.name
-											}, person.id)),
-											recents.map((phone) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-												type: "button",
-												onClick: () => setTo(phone),
-												className: cn("h-11 shrink-0 rounded-full px-4 font-mono text-xs shadow-border", primary === phone ? "bg-primary text-primary-foreground" : "bg-surface-2 text-muted-foreground"),
-												children: formatPretty(phone)
-											}, phone))
-										]
-									})
-								]
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "space-y-2",
-								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
-										htmlFor: "body",
-										children: copy.message
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Textarea, {
-										id: "body",
-										name: "body",
-										placeholder: copy.messagePlaceholder,
-										value: text,
-										onChange: (e) => setText(e.target.value),
-										maxLength: SMS_MAX_CHARS,
-										onKeyDown: (e) => {
-											if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-												e.preventDefault();
-												requestSend();
-											}
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "flex items-end justify-between gap-3",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+								className: "font-display text-2xl italic tracking-tight",
+								children: copy.write
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+								className: "pb-1 font-mono text-xs text-subtle",
+								children: info.segments === 0 ? copy.max : copy.smsCount(info.segments, info.encoding)
+							})]
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "mt-5 flex gap-2",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+									type: "button",
+									onClick: () => setSendMode("imessage"),
+									className: cn("h-11 flex-1 rounded-full px-4 text-sm shadow-border", sendMode === "imessage" ? "bg-primary text-primary-foreground" : "bg-surface-2 text-foreground"),
+									children: copy.viaIMessage
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+									type: "button",
+									onClick: () => setSendMode("sms"),
+									className: cn("h-11 flex-1 rounded-full px-4 text-sm shadow-border", sendMode === "sms" ? "bg-primary text-primary-foreground" : "bg-surface-2 text-foreground"),
+									children: copy.viaSms
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+									type: "button",
+									onClick: () => {
+										if (!whatsappLine.connected) {
+											setSettingsOpen(true);
+											return;
 										}
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-										className: "h-1 overflow-hidden rounded-full bg-muted",
-										children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-											className: cn("h-full rounded-full transition-[width] duration-150 ease-out", info.overLimit || !nameTokensOk(text) ? "bg-bad" : "bg-primary"),
-											style: { width: `${meterPct}%` }
+										setSendMode("whatsapp");
+									},
+									className: cn("h-11 flex-1 rounded-full px-4 text-sm shadow-border", sendMode === "whatsapp" ? "bg-primary text-primary-foreground" : "bg-surface-2 text-foreground"),
+									children: copy.viaWhatsapp
+								})
+							]
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "mt-6 space-y-5",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "space-y-2",
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
+											htmlFor: "to",
+											children: copy.to
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+											id: "to",
+											name: "to",
+											type: "tel",
+											inputMode: "tel",
+											autoComplete: "tel",
+											placeholder: sendMode === "sms" ? copy.toPlaceholderSms : copy.toPlaceholder,
+											value: to,
+											onChange: (e) => setTo(e.target.value),
+											"aria-invalid": Boolean(to) && Boolean(issue)
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "flex flex-wrap items-center justify-between gap-2",
+											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+												className: "text-xs text-subtle",
+												children: issue ? issue : recipients.length > 1 ? whoLabel : primary ? `${known ? `${known.name} · ` : ""}${formatPretty(primary)}${lookup ? ` · ${lookup}` : ""}` : sendMode === "sms" ? copy.toHintSms : sendMode === "whatsapp" ? copy.toHintWhatsapp : copy.toHint
+											}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+												type: "button",
+												className: "text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline",
+												onClick: () => setTo(from),
+												children: copy.textThisLine
+											})]
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "-mx-1 flex gap-2 overflow-x-auto px-1 pt-1",
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+													type: "button",
+													variant: "outline",
+													size: "sm",
+													className: "h-11 shrink-0 rounded-full",
+													onClick: () => {
+														setPersonName(known?.name ?? "");
+														setPeopleOpen(true);
+													},
+													children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(UserPlus, {}), copy.people]
+												}),
+												people.map((person) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+													type: "button",
+													onClick: () => setTo(person.phone),
+													className: cn("h-11 shrink-0 rounded-full px-4 text-sm shadow-border", primary === person.phone ? "bg-primary text-primary-foreground" : "bg-surface-2 text-foreground"),
+													children: person.name
+												}, person.id)),
+												recents.map((phone) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+													type: "button",
+													onClick: () => setTo(phone),
+													className: cn("h-11 shrink-0 rounded-full px-4 font-mono text-xs shadow-border", primary === phone ? "bg-primary text-primary-foreground" : "bg-surface-2 text-muted-foreground"),
+													children: formatPretty(phone)
+												}, phone))
+											]
 										})
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-										className: "flex flex-wrap items-center justify-between gap-2",
-										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-											className: cn("font-mono text-xs tabular-nums", info.overLimit || !nameTokensOk(text) ? "text-bad" : "text-subtle"),
-											children: !nameTokensOk(text) ? copy.removeBraces : info.segments === 0 ? `${text.length} / ${SMS_MAX_CHARS}` : copy.leftInSms(info.remaining, info.segments)
-										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-											className: "font-mono text-xs tabular-nums text-subtle",
-											children: copy.chars(text.length)
-										})]
-									})
-								]
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "flex flex-wrap gap-2",
-								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-										type: "button",
-										variant: "outline",
-										size: "sm",
-										onClick: () => setText(copy.helloBody),
-										children: copy.hello
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-										type: "button",
-										variant: "outline",
-										size: "sm",
-										onClick: () => setText(copy.codeBody(sixDigitCode())),
-										children: copy.code
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-										type: "button",
-										variant: "outline",
-										size: "sm",
-										onClick: () => setText(copy.reminderBody),
-										children: copy.reminder
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-										type: "button",
-										variant: "outline",
-										size: "sm",
-										onClick: () => setText((prev) => prev.includes("{{name}}") ? prev : `${prev}{{name}}`.trim()),
-										children: copy.insertName
-									}),
-									templates.map((tpl) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-										type: "button",
-										variant: "secondary",
-										size: "sm",
-										onClick: () => setText(tpl.text),
-										onContextMenu: (e) => {
-											e.preventDefault();
-											setTemplates((prev) => prev.filter((item) => item.id !== tpl.id));
-										},
-										children: tpl.title
-									}, tpl.id)),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
-										type: "button",
-										variant: "ghost",
-										size: "sm",
-										onClick: () => setTemplateOpen(true),
-										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(BookmarkPlus, {}), copy.saveTemplate]
-									})
-								]
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-								type: "button",
-								size: "lg",
-								className: "w-full",
-								disabled: sending,
-								onClick: requestSend,
-								children: sending ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(LoaderCircle, { className: "animate-spin" }), copy.sending] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [info.segments > 1 ? copy.sendN(info.segments) : copy.send, /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ArrowUpRight, {})] })
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-								className: "text-center text-xs text-subtle",
-								children: copy.confirmHint
-							})
-						]
-					})]
+									]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "space-y-2",
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
+											htmlFor: "body",
+											children: copy.message
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Textarea, {
+											id: "body",
+											name: "body",
+											placeholder: copy.messagePlaceholder,
+											value: text,
+											onChange: (e) => setText(e.target.value),
+											maxLength: SMS_MAX_CHARS,
+											onKeyDown: (e) => {
+												if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+													e.preventDefault();
+													requestSend();
+												}
+											}
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+											className: "h-1 overflow-hidden rounded-full bg-muted",
+											children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+												className: cn("h-full rounded-full transition-[width] duration-150 ease-out", info.overLimit || !nameTokensOk(text) ? "bg-bad" : "bg-primary"),
+												style: { width: `${meterPct}%` }
+											})
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "flex flex-wrap items-center justify-between gap-2",
+											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+												className: cn("font-mono text-xs tabular-nums", info.overLimit || !nameTokensOk(text) ? "text-bad" : "text-subtle"),
+												children: !nameTokensOk(text) ? copy.removeBraces : info.segments === 0 ? `${text.length} / ${SMS_MAX_CHARS}` : copy.leftInSms(info.remaining, info.segments)
+											}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+												className: "font-mono text-xs tabular-nums text-subtle",
+												children: copy.chars(text.length)
+											})]
+										})
+									]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "flex flex-wrap gap-2",
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+											type: "button",
+											variant: "outline",
+											size: "sm",
+											onClick: () => setText(copy.helloBody),
+											children: copy.hello
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+											type: "button",
+											variant: "outline",
+											size: "sm",
+											onClick: () => setText(copy.codeBody(sixDigitCode())),
+											children: copy.code
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+											type: "button",
+											variant: "outline",
+											size: "sm",
+											onClick: () => setText(copy.reminderBody),
+											children: copy.reminder
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+											type: "button",
+											variant: "outline",
+											size: "sm",
+											onClick: () => setText((prev) => prev.includes("{{name}}") ? prev : `${prev}{{name}}`.trim()),
+											children: copy.insertName
+										}),
+										templates.map((tpl) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+											type: "button",
+											variant: "secondary",
+											size: "sm",
+											onClick: () => setText(tpl.text),
+											onContextMenu: (e) => {
+												e.preventDefault();
+												setTemplates((prev) => prev.filter((item) => item.id !== tpl.id));
+											},
+											children: tpl.title
+										}, tpl.id)),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+											type: "button",
+											variant: "ghost",
+											size: "sm",
+											onClick: () => setTemplateOpen(true),
+											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(BookmarkPlus, {}), copy.saveTemplate]
+										})
+									]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+									type: "button",
+									size: "lg",
+									className: "w-full",
+									disabled: sending,
+									onClick: requestSend,
+									children: sending ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(LoaderCircle, { className: "animate-spin" }), copy.sending] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [info.segments > 1 ? copy.sendN(info.segments) : sendMode === "imessage" ? copy.sendIMessage : sendMode === "whatsapp" ? copy.sendWhatsapp : copy.send, /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ArrowUpRight, {})] })
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "text-center text-xs text-subtle",
+									children: copy.confirmHint
+								})
+							]
+						})
+					]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("aside", {
 					className: "stagger-in flex flex-col rounded-2xl bg-card p-5 shadow-border lg:col-span-2",
 					children: [
@@ -854,7 +1071,13 @@ function SmsStudio({ initialLine }) {
 											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 												className: "font-mono text-xs text-foreground",
 												children: displayTo(item)
-											}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(StatusPill, { status: item.status })]
+											}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+												className: "flex items-center gap-1",
+												children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
+													variant: "queued",
+													children: item.channel === "imessage" ? copy.viaIMessage : item.channel === "whatsapp" ? copy.viaWhatsapp : copy.viaSms
+												}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(StatusPill, { status: item.status })]
+											})]
 										}),
 										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 											className: "mt-2 line-clamp-2 text-sm leading-relaxed text-muted-foreground",
@@ -924,7 +1147,7 @@ function SmsStudio({ initialLine }) {
 				open: confirmOpen,
 				onOpenChange: setConfirmOpen,
 				children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(AlertDialogContent, { children: [
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(AlertDialogHeader, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(AlertDialogTitle, { children: copy.confirmTitle }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AlertDialogDescription, { children: recipients.length ? copy.confirmBody(whoLabel, Math.max(1, info.segments), formatPretty(from)) : copy.validNumber })] }),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(AlertDialogHeader, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(AlertDialogTitle, { children: copy.confirmTitle }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AlertDialogDescription, { children: recipients.length ? copy.confirmBody(whoLabel, Math.max(1, info.segments), formatPretty(from), sendMode) : copy.validNumber })] }),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 						className: "mt-3 line-clamp-4 rounded-md bg-surface-2 px-3 py-3 text-sm leading-relaxed text-foreground shadow-border",
 						children: composeBody(text, settings.signature) || copy.emptyMessage
@@ -1015,35 +1238,109 @@ function SmsStudio({ initialLine }) {
 				onOpenChange: setSettingsOpen,
 				children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DialogContent, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DialogHeader, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DialogTitle, { children: copy.settings }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DialogDescription, { children: copy.settingsDesc })] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 					className: "mt-5 space-y-5",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "space-y-2",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
-							htmlFor: "signature",
-							children: copy.signature
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Textarea, {
-							id: "signature",
-							name: "signature",
-							placeholder: copy.signaturePlaceholder,
-							value: settings.signature,
-							onChange: (e) => setSettings((prev) => ({
-								...prev,
-								signature: e.target.value
-							})),
-							className: "min-h-24"
-						})]
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
-						className: "flex min-h-11 items-center justify-between gap-3",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-							className: "text-sm text-foreground",
-							children: copy.confirmToggle
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Switch, {
-							checked: settings.confirm,
-							onCheckedChange: (confirm) => setSettings((prev) => ({
-								...prev,
-								confirm
-							}))
-						})]
-					})]
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "space-y-2",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
+								htmlFor: "signature",
+								children: copy.signature
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Textarea, {
+								id: "signature",
+								name: "signature",
+								placeholder: copy.signaturePlaceholder,
+								value: settings.signature,
+								onChange: (e) => setSettings((prev) => ({
+									...prev,
+									signature: e.target.value
+								})),
+								className: "min-h-24"
+							})]
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
+							className: "flex min-h-11 items-center justify-between gap-3",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+								className: "text-sm text-foreground",
+								children: copy.confirmToggle
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Switch, {
+								checked: settings.confirm,
+								onCheckedChange: (confirm) => setSettings((prev) => ({
+									...prev,
+									confirm
+								}))
+							})]
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Separator, {}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "space-y-3",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", {
+									className: "text-sm font-medium text-foreground",
+									children: copy.waSetup
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "mt-1 text-xs leading-relaxed text-muted-foreground",
+									children: copy.waSetupDesc
+								})] }),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "space-y-2",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
+										htmlFor: "wa-phone-id",
+										children: copy.waPhoneId
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+										id: "wa-phone-id",
+										name: "wa-phone-id",
+										placeholder: "106540352242922",
+										value: waPhoneId,
+										onChange: (e) => setWaPhoneId(e.target.value),
+										className: "font-mono tracking-normal"
+									})]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "space-y-2",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
+										htmlFor: "wa-token",
+										children: copy.waToken
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+										id: "wa-token",
+										name: "wa-token",
+										type: "password",
+										autoComplete: "off",
+										placeholder: "EAA…",
+										value: waToken,
+										onChange: (e) => setWaToken(e.target.value),
+										className: "font-sans tracking-normal"
+									})]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "space-y-2",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
+										htmlFor: "wa-template",
+										children: copy.waTemplate
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+										id: "wa-template",
+										name: "wa-template",
+										placeholder: "hello_world",
+										value: waTemplate,
+										onChange: (e) => setWaTemplate(e.target.value),
+										className: "font-mono tracking-normal"
+									})]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+									type: "button",
+									className: "w-full",
+									disabled: waConnecting,
+									onClick: () => void connectWhatsApp(),
+									children: waConnecting ? copy.waConnecting : copy.waConnect
+								}),
+								whatsappLine.connected ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+									className: "text-xs text-muted-foreground",
+									children: [copy.waConnected, whatsappLine.from ? ` · ${formatPretty(whatsappLine.from)}` : ""]
+								}) : whatsappLine.error ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "text-xs text-bad",
+									children: whatsappLine.error
+								}) : null
+							]
+						})
+					]
 				})] })
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Dialog, {
@@ -1065,11 +1362,46 @@ function SmsStudio({ initialLine }) {
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(BookmarkPlus, {}), copy.save]
 					})]
 				})] })
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Dialog, {
+				open: Boolean(openChannel),
+				onOpenChange: (open) => {
+					if (!open) setChannelId(null);
+				},
+				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DialogContent, { children: openChannel ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DialogHeader, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DialogTitle, { children: openChannel.name }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DialogDescription, { children: openChannel.summary })] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "mt-4 space-y-4",
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChannelStatusMark, { status: openChannel.status }),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "text-sm leading-relaxed text-foreground",
+							children: openChannel.detail
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "rounded-md bg-surface-2 px-3 py-3 shadow-border",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "text-xs font-medium tracking-widest text-muted-foreground",
+								children: copy.channelNeeds
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "mt-2 text-sm leading-relaxed text-foreground",
+								children: openChannel.needs
+							})]
+						}),
+						openChannel.id === "whatsapp" ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+							type: "button",
+							className: "w-full",
+							onClick: () => {
+								setChannelId(null);
+								setSettingsOpen(true);
+							},
+							children: copy.waSetup
+						}) : null
+					]
+				})] }) : null })
 			})
 		]
 	});
 }
-function LineBadge({ line, from }) {
+function LineBadge({ line, from, mode }) {
 	if (line.paused) return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
 		variant: "warn",
 		className: "whitespace-nowrap",
@@ -1083,7 +1415,7 @@ function LineBadge({ line, from }) {
 				className: "pulse-dot",
 				"aria-hidden": "true"
 			}),
-			copy.live,
+			mode === "imessage" ? copy.viaIMessage : mode === "whatsapp" ? copy.viaWhatsapp : copy.live,
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
 				className: "hidden sm:inline",
 				children: ["· ", formatPretty(from)]
@@ -1094,6 +1426,25 @@ function LineBadge({ line, from }) {
 		variant: "warn",
 		className: "whitespace-nowrap",
 		children: line.error ? copy.offline : copy.connecting
+	});
+}
+function ChannelStatusMark({ status }) {
+	const label = status === "live" ? copy.channelLive : status === "provision" ? copy.channelProvision : status === "closed" ? copy.channelClosed : copy.channelPartner;
+	if (status === "live") return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Badge, {
+		variant: "live",
+		className: "whitespace-nowrap",
+		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+			className: "pulse-dot",
+			"aria-hidden": "true"
+		}), label]
+	});
+	if (status === "provision") return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
+		variant: "queued",
+		children: label
+	});
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
+		variant: "warn",
+		children: label
 	});
 }
 function StatusPill({ status }) {
@@ -1119,12 +1470,8 @@ function StatusPill({ status }) {
 	});
 }
 function Home() {
-	const line = Route.useLoaderData();
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SmsStudio, { initialLine: line ?? {
-		connected: false,
-		from: "+18332562129",
-		paused: false
-	} });
+	const data = Route.useLoaderData();
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SmsStudio, { initial: data ?? FALLBACK });
 }
 //#endregion
 export { Home as component };

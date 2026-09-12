@@ -1,5 +1,7 @@
 /** MailerSend SMS number on this account — safe to show in the UI. */
 export const FROM_NUMBER = "+18332562129";
+/** Sendblue iMessage line — safe to show in the UI. */
+export const IMESSAGE_FROM = "+19176257748";
 
 export const SMS_MAX_CHARS = 2048;
 export const OUTBOX_KEY = "wire-outbox-v1";

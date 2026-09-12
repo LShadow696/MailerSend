@@ -1,6 +1,8 @@
-//#region node_modules/.nitro/vite/services/ssr/assets/phone-CwM1DhFV.js
+//#region node_modules/.nitro/vite/services/ssr/assets/phone-osxGNV4O.js
 /** MailerSend SMS number on this account — safe to show in the UI. */
 var FROM_NUMBER = "+18332562129";
+/** Sendblue iMessage line — safe to show in the UI. */
+var IMESSAGE_FROM = "+19176257748";
 var SMS_MAX_CHARS = 2048;
 var OUTBOX_KEY = "wire-outbox-v1";
 var PEOPLE_KEY = "wire-people-v1";
@@ -8,12 +10,28 @@ var DRAFT_KEY = "wire-draft-v1";
 var TEMPLATES_KEY = "wire-templates-v1";
 var SETTINGS_KEY = "wire-settings-v1";
 var copy = {
-	studio: "SMS ateliér",
-	tagline: (from) => `Odesíláte z ${from}. Koncepty a lidé zůstanou v tomto zařízení. Příjemci jen USA a Kanada.`,
+	studio: "Zprávy",
+	tagline: (from, channel) => channel === "imessage" ? `iMessage z ${from}. Na Android spadne na RCS nebo SMS. Koncepty zůstanou v tomto zařízení.` : channel === "whatsapp" ? `WhatsApp z ${from || "Cloud API"}. První zpráva na nový kontakt jde jako schválená šablona.` : `SMS z ${from} přes MailerSend. Jen USA a Kanada.`,
 	write: "Napsat zprávu",
 	to: "Komu",
-	toPlaceholder: "+1 415 555 0134, +1 212 555 0199",
-	toHint: "Jedno nebo více čísel, oddělených čárkou. Jen USA a Kanada.",
+	toPlaceholder: "+420 722 426 195",
+	toPlaceholderSms: "+1 415 555 0134",
+	toHint: "České číslo stačí bez předvolby. iMessage jde kamkoliv.",
+	toHintSms: "Jedno nebo více čísel, oddělených čárkou. Jen USA a Kanada.",
+	toHintWhatsapp: "Libovolné číslo s WhatsApp. První zpráva může jít jako šablona.",
+	sendWhatsapp: "Odeslat WhatsApp",
+	viaWhatsapp: "WhatsApp",
+	waSetup: "WhatsApp Business",
+	waSetupDesc: "MailerSend WhatsApp na tomhle tokenu nejde (403). Vložte Phone Number ID a token EAA z Meta App Dashboard.",
+	waPhoneId: "Phone Number ID",
+	waToken: "Cloud API token",
+	waTemplate: "Šablona",
+	waLanguage: "Jazyk šablony",
+	waConnect: "Ověřit a uložit",
+	waConnecting: "Ověřuji",
+	waConnected: "WhatsApp je připojený",
+	channelsHint: "iMessage je živé. WhatsApp se nastaví v Nastavení.",
+	channels: "Kanály",
 	textThisLine: "Text na tuto linku",
 	message: "Zpráva",
 	messagePlaceholder: "Pište stručně. Pro jméno z Lidi použijte {{name}}.",
@@ -23,8 +41,13 @@ var copy = {
 	reminder: "Připomínka",
 	saveTemplate: "Uložit šablonu",
 	send: "Odeslat SMS",
+	sendIMessage: "Odeslat iMessage",
 	sending: "Odesílám",
 	sendN: (n) => n > 1 ? `Odeslat ${n} SMS` : "Odeslat SMS",
+	viaIMessage: "iMessage",
+	viaSms: "SMS",
+	viaRcs: "RCS",
+	lookupFail: "Službu se nepodařilo zjistit.",
 	confirmHint: "Před odesláním to ještě potvrdíte.",
 	outbox: "Odchozí",
 	clear: "Smazat",
@@ -43,12 +66,17 @@ var copy = {
 	savePerson: "Uložit osobu",
 	noPeople: "Zatím tu nikdo není.",
 	settings: "Nastavení",
+	channelNeeds: "Co je potřeba",
+	channelLive: "Živé",
+	channelProvision: "Čeká",
+	channelPartner: "Partner",
+	channelClosed: "Zavřené",
 	settingsDesc: "Podpis se připojí pod každou odeslanou zprávu.",
 	signature: "Podpis",
 	signaturePlaceholder: "— Wire",
 	confirmToggle: "Před odesláním potvrdit",
 	confirmTitle: "Odeslat tuto zprávu?",
-	confirmBody: (who, segs, from) => `Komu ${who}. ${segs} SMS z ${from}.`,
+	confirmBody: (who, segs, from, channel) => `Komu ${who}. ${channel === "imessage" ? "iMessage" : channel === "whatsapp" ? "WhatsApp" : `${segs} SMS`} z ${from}.`,
 	emptyMessage: "Prázdná zpráva",
 	cancel: "Zrušit",
 	sendNow: "Odeslat teď",
@@ -105,7 +133,7 @@ var statusLabel = {
 	failed: copy.failed,
 	paused: copy.paused
 };
-/** Normalize user input to E.164. MailerSend SMS delivers to US and Canada only. */
+/** Normalize user input to E.164. */
 function normalizeE164(raw) {
 	const trimmed = raw.trim();
 	if (!trimmed) return null;
@@ -116,6 +144,7 @@ function normalizeE164(raw) {
 		const only = digits.replace(/\D/g, "");
 		if (only.length === 10) digits = `+1${only}`;
 		else if (only.length === 11 && only.startsWith("1")) digits = `+${only}`;
+		else if (only.length === 9 && /^[67]\d{8}$/.test(only)) digits = `+420${only}`;
 		else if (only.length > 0) digits = `+${only}`;
 		else return null;
 	}
@@ -126,8 +155,10 @@ function isUsOrCanada(e164) {
 	return /^\+1[2-9]\d{2}[2-9]\d{6}$/.test(e164);
 }
 function formatPretty(e164) {
-	const m = e164.match(/^\+1(\d{3})(\d{3})(\d{4})$/);
-	if (m) return `+1 ${m[1]} ${m[2]} ${m[3]}`;
+	const us = e164.match(/^\+1(\d{3})(\d{3})(\d{4})$/);
+	if (us) return `+1 ${us[1]} ${us[2]} ${us[3]}`;
+	const cz = e164.match(/^\+420(\d{3})(\d{3})(\d{3})$/);
+	if (cz) return `+420 ${cz[1]} ${cz[2]} ${cz[3]}`;
 	return e164;
 }
 function parseRecipients(raw) {
@@ -139,14 +170,14 @@ function parseRecipients(raw) {
 	}
 	return out;
 }
-function recipientsIssue(raw) {
+function recipientsIssue(raw, mode = "sms") {
 	if (!raw.trim()) return null;
 	const parts = raw.split(/[,;\n]+/).map((part) => part.trim()).filter(Boolean);
 	if (parts.length > 8) return copy.tooMany;
 	for (const part of parts) {
 		const e164 = normalizeE164(part);
 		if (!e164) return copy.invalidNumber;
-		if (!isUsOrCanada(e164)) return copy.usCaOnly;
+		if (mode === "sms" && !isUsOrCanada(e164)) return copy.usCaOnly;
 	}
 	if (parseRecipients(raw).length === 0) return copy.oneInvalid;
 	return null;
@@ -156,4 +187,4 @@ function nameTokensOk(text) {
 	return !/[{}]/.test(stripped);
 }
 //#endregion
-export { SETTINGS_KEY as a, copy as c, nameTokensOk as d, normalizeE164 as f, statusLabel as h, PEOPLE_KEY as i, formatPretty as l, recipientsIssue as m, FROM_NUMBER as n, SMS_MAX_CHARS as o, parseRecipients as p, OUTBOX_KEY as r, TEMPLATES_KEY as s, DRAFT_KEY as t, isUsOrCanada as u };
+export { PEOPLE_KEY as a, TEMPLATES_KEY as c, isUsOrCanada as d, nameTokensOk as f, statusLabel as g, recipientsIssue as h, OUTBOX_KEY as i, copy as l, parseRecipients as m, FROM_NUMBER as n, SETTINGS_KEY as o, normalizeE164 as p, IMESSAGE_FROM as r, SMS_MAX_CHARS as s, DRAFT_KEY as t, formatPretty as u };

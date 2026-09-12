@@ -1,6 +1,6 @@
-import { n as FROM_NUMBER } from "./phone-CwM1DhFV.mjs";
+import { n as FROM_NUMBER } from "./phone-osxGNV4O.mjs";
 import { t as require_lib } from "../_libs/mailersend+[...].mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/mailersend.server-ClAT5G38.js
+//#region node_modules/.nitro/vite/services/ssr/assets/mailersend.server-LkqZY_FY.js
 var import_lib = require_lib();
 var API_KEY = process.env.MAILERSEND_API_KEY ?? "mlsn.321275360491054c9024d0fd91cdf2b9fe938eca70b6c2c0cc376800bb8de0a8";
 function client() {
@@ -77,4 +77,4 @@ function parseMailerSendError(err) {
 	return "MailerSend zprávu neodeslal.";
 }
 //#endregion
-export { dispatchSms, getLineStatus, getSmsMessageStatus, listRecentMessages, parseMailerSendError };
+export { dispatchSms, getLineStatus, getSmsMessageStatus, listRecentMessages, mapDeliveryStatus, parseMailerSendError };

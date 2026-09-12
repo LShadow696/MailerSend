@@ -2,10 +2,10 @@ import { o as __toESM } from "../_runtime.mjs";
 import { C as require_jsx_runtime, w as require_react } from "../_libs/@radix-ui/react-alert-dialog+[...].mjs";
 import { _ as useRouter, f as createRouter, g as createRootRoute, h as createFileRoute, l as Scripts, m as lazyRouteComponent, p as Outlet, u as HeadContent } from "../_libs/@tanstack/react-router+[...].mjs";
 import { n as TSS_SERVER_FUNCTION, r as getServerFnById, t as createServerFn } from "./ssr.mjs";
-import { c as copy, d as nameTokensOk, f as normalizeE164, n as FROM_NUMBER, o as SMS_MAX_CHARS, u as isUsOrCanada } from "./phone-CwM1DhFV.mjs";
+import { d as isUsOrCanada, f as nameTokensOk, l as copy, n as FROM_NUMBER, p as normalizeE164, r as IMESSAGE_FROM, s as SMS_MAX_CHARS } from "./phone-osxGNV4O.mjs";
 import { r as TriangleAlert } from "../_libs/lucide-react.mjs";
 import { a as union, i as string, n as number, r as object, t as literal } from "../_libs/zod.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/router-DioctALd.js
+//#region node_modules/.nitro/vite/services/ssr/assets/router-2Q6k1XFd.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var __defProp = Object.defineProperty;
@@ -309,7 +309,7 @@ function PreviewHostBridge() {
 	}, [router]);
 	return null;
 }
-var styles_default = "/assets/styles-B68Dn8N2.css";
+var styles_default = "/assets/styles-Brw1bFik.css";
 var APP_NAME = "Wire";
 var Route$1 = createRootRoute({
 	head: () => ({
@@ -376,6 +376,27 @@ var Route$1 = createRootRoute({
 		})]
 	})
 });
+var FALLBACK = {
+	sms: {
+		connected: false,
+		from: FROM_NUMBER,
+		paused: false,
+		error: "Nepodařilo se spojit s MailerSend."
+	},
+	imessage: {
+		connected: false,
+		from: IMESSAGE_FROM,
+		paused: false,
+		error: "Nepodařilo se spojit se Sendblue."
+	},
+	whatsapp: {
+		connected: false,
+		from: "",
+		paused: false,
+		error: "WhatsApp klíč Meta nepřijala."
+	},
+	contacts: []
+};
 var createSsrRpc = (functionId) => {
 	const url = "/_serverFn/" + functionId;
 	const serverFnMeta = { id: functionId };
@@ -388,13 +409,15 @@ var createSsrRpc = (functionId) => {
 		[TSS_SERVER_FUNCTION]: true
 	});
 };
-var getSmsLine = createServerFn({ method: "POST" }).handler(createSsrRpc("96ec3b8789e858e2126cbb2ed21150d88c0d16735d90b6e7133649da9964eade"));
+createServerFn({ method: "POST" }).handler(createSsrRpc("96ec3b8789e858e2126cbb2ed21150d88c0d16735d90b6e7133649da9964eade"));
+var getChannelStatus = createServerFn({ method: "POST" }).handler(createSsrRpc("885945b256a86e98dccf12748c4f52b723de14f37275c71c8973176c507ff9fe"));
 var sendSms = createServerFn({ method: "POST" }).validator((input) => {
+	const channel = input.channel === "imessage" ? "imessage" : input.channel === "whatsapp" ? "whatsapp" : "sms";
 	const to = (input.to ?? []).map((value) => normalizeE164(value)).filter((value) => Boolean(value));
 	const unique = [...new Set(to)];
 	if (unique.length === 0) throw new Error(copy.invalidNumber);
 	if (unique.length > 8) throw new Error(copy.tooMany);
-	if (unique.some((n) => !isUsOrCanada(n))) throw new Error(copy.usCaOnly);
+	if (channel === "sms" && unique.some((n) => !isUsOrCanada(n))) throw new Error(copy.usCaOnly);
 	const text = input.text.trim();
 	if (!text) throw new Error(copy.writeFirst);
 	if (text.length > 2048) throw new Error(`Zpráva může mít nejvýš ${SMS_MAX_CHARS} znaků.`);
@@ -405,27 +428,37 @@ var sendSms = createServerFn({ method: "POST" }).validator((input) => {
 	return {
 		to: unique,
 		text,
-		names: input.names ?? {}
+		names: input.names ?? {},
+		channel
 	};
 }).handler(createSsrRpc("ee3677e6481da28e76736a82b0e0330a8a964c310e2bdc53cd85e647f5911192"));
 var getSmsStatus = createServerFn({ method: "POST" }).validator((input) => {
 	const messageId = input.messageId.trim();
 	if (!messageId) throw new Error(copy.noId);
-	return { messageId };
+	return {
+		messageId,
+		channel: input.channel === "imessage" ? "imessage" : input.channel === "whatsapp" ? "whatsapp" : "sms"
+	};
 }).handler(createSsrRpc("990da3b7efcb46ec8182164ded41b63bf6d8e213dac94ccc72596ae0108e1ed4"));
+var lookupService = createServerFn({ method: "POST" }).validator((input) => {
+	const number = normalizeE164(input.number);
+	if (!number) throw new Error(copy.invalidNumber);
+	return { number };
+}).handler(createSsrRpc("dd9752b7e554654d1b8d4dbc8d199c1f1bbaddc8973e8d0356042d0ac05b3b31"));
 var listSmsHistory = createServerFn({ method: "POST" }).handler(createSsrRpc("680f6a3da398cda4995dac6f11c67071d993bd76a1ca0c7c3f1c31c874c13702"));
-var $$splitComponentImporter = () => import("./routes-BBUNX7fe.mjs");
+var saveWhatsApp = createServerFn({ method: "POST" }).validator((input) => ({
+	token: String(input.token ?? "").trim(),
+	phoneNumberId: String(input.phoneNumberId ?? "").trim(),
+	template: String(input.template ?? "hello_world").trim() || "hello_world",
+	language: String(input.language ?? "en_US").trim() || "en_US"
+})).handler(createSsrRpc("a87e7ab35b71444b1555609b6ce6be0697995b096c78e4b37dd7e33214385f46"));
+var $$splitComponentImporter = () => import("./routes-ClqOxc0a.mjs");
 var Route = createFileRoute("/")({
 	loader: async () => {
 		try {
-			return await getSmsLine();
+			return await getChannelStatus();
 		} catch {
-			return {
-				connected: false,
-				from: FROM_NUMBER,
-				paused: false,
-				error: "Nepodařilo se spojit s MailerSend."
-			};
+			return FALLBACK;
 		}
 	},
 	component: lazyRouteComponent($$splitComponentImporter, "component")
@@ -444,4 +477,4 @@ function getRouter() {
 	});
 }
 //#endregion
-export { listSmsHistory as a, getSmsStatus as i, Route as n, sendSms as o, getSmsLine as r, router_exports as t };
+export { listSmsHistory as a, sendSms as c, getSmsStatus as i, FALLBACK as l, Route as n, lookupService as o, getChannelStatus as r, saveWhatsApp as s, router_exports as t };

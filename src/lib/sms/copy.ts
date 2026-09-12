@@ -1,11 +1,32 @@
 export const copy = {
-  studio: "SMS ateliér",
-  tagline: (from: string) =>
-    `Odesíláte z ${from}. Koncepty a lidé zůstanou v tomto zařízení. Příjemci jen USA a Kanada.`,
+  studio: "Zprávy",
+  tagline: (from: string, channel: string) =>
+    channel === "imessage"
+      ? `iMessage z ${from}. Na Android spadne na RCS nebo SMS. Koncepty zůstanou v tomto zařízení.`
+      : channel === "whatsapp"
+        ? `WhatsApp z ${from || "Cloud API"}. První zpráva na nový kontakt jde jako schválená šablona.`
+        : `SMS z ${from} přes MailerSend. Jen USA a Kanada.`,
   write: "Napsat zprávu",
   to: "Komu",
-  toPlaceholder: "+1 415 555 0134, +1 212 555 0199",
-  toHint: "Jedno nebo více čísel, oddělených čárkou. Jen USA a Kanada.",
+  toPlaceholder: "+420 722 426 195",
+  toPlaceholderSms: "+1 415 555 0134",
+  toHint: "České číslo stačí bez předvolby. iMessage jde kamkoliv.",
+  toHintSms: "Jedno nebo více čísel, oddělených čárkou. Jen USA a Kanada.",
+  toHintWhatsapp: "Libovolné číslo s WhatsApp. První zpráva může jít jako šablona.",
+  sendWhatsapp: "Odeslat WhatsApp",
+  viaWhatsapp: "WhatsApp",
+  waSetup: "WhatsApp Business",
+  waSetupDesc:
+    "MailerSend WhatsApp na tomhle tokenu nejde (403). Vložte Phone Number ID a token EAA z Meta App Dashboard.",
+  waPhoneId: "Phone Number ID",
+  waToken: "Cloud API token",
+  waTemplate: "Šablona",
+  waLanguage: "Jazyk šablony",
+  waConnect: "Ověřit a uložit",
+  waConnecting: "Ověřuji",
+  waConnected: "WhatsApp je připojený",
+  channelsHint: "iMessage je živé. WhatsApp se nastaví v Nastavení.",
+  channels: "Kanály",
   textThisLine: "Text na tuto linku",
   message: "Zpráva",
   messagePlaceholder: "Pište stručně. Pro jméno z Lidi použijte {{name}}.",
@@ -15,8 +36,13 @@ export const copy = {
   reminder: "Připomínka",
   saveTemplate: "Uložit šablonu",
   send: "Odeslat SMS",
+  sendIMessage: "Odeslat iMessage",
   sending: "Odesílám",
   sendN: (n: number) => (n > 1 ? `Odeslat ${n} SMS` : "Odeslat SMS"),
+  viaIMessage: "iMessage",
+  viaSms: "SMS",
+  viaRcs: "RCS",
+  lookupFail: "Službu se nepodařilo zjistit.",
   confirmHint: "Před odesláním to ještě potvrdíte.",
   outbox: "Odchozí",
   clear: "Smazat",
@@ -37,13 +63,24 @@ export const copy = {
   savePerson: "Uložit osobu",
   noPeople: "Zatím tu nikdo není.",
   settings: "Nastavení",
+  channelNeeds: "Co je potřeba",
+  channelLive: "Živé",
+  channelProvision: "Čeká",
+  channelPartner: "Partner",
+  channelClosed: "Zavřené",
   settingsDesc: "Podpis se připojí pod každou odeslanou zprávu.",
   signature: "Podpis",
   signaturePlaceholder: "— Wire",
   confirmToggle: "Před odesláním potvrdit",
   confirmTitle: "Odeslat tuto zprávu?",
-  confirmBody: (who: string, segs: number, from: string) =>
-    `Komu ${who}. ${segs} SMS z ${from}.`,
+  confirmBody: (who: string, segs: number, from: string, channel: string) =>
+    `Komu ${who}. ${
+      channel === "imessage"
+        ? "iMessage"
+        : channel === "whatsapp"
+          ? "WhatsApp"
+          : `${segs} SMS`
+    } z ${from}.`,
   emptyMessage: "Prázdná zpráva",
   cancel: "Zrušit",
   sendNow: "Odeslat teď",
