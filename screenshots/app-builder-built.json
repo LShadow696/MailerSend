@@ -1,0 +1,38 @@
+{
+  "url": "http://127.0.0.1:8081/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Wire",
+      "hasCanvas": false,
+      "bodyTextLen": 483,
+      "bodyTextHash": "3fc57e0506b8cecbcd1c5b3625474faa70d0a0dc2824e57686b587eca3a549a1",
+      "bodyTextPrefix": "SMS ateliér Wire Živé · +1 833 256 2129 Odesíláte z +1 833 256 2",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-built.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Wire",
+      "hasCanvas": false,
+      "bodyTextLen": 465,
+      "bodyTextHash": "2281dc97759a6004ae53096a6614b0f7b8ed64a6a18a4826e94fbe8ee44f21f1",
+      "bodyTextPrefix": "SMS ateliér Wire Živé Odesíláte z +1 833 256 2129. Koncepty a li",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-built-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/app-builder-built.json",
+  "divergesFromBaseline": false,
+  "baselineReasons": []
+}

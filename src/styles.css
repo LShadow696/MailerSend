@@ -1,0 +1,184 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@theme {
+  --font-sans: "Figtree", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Fraunces", ui-serif, Georgia, "Times New Roman", serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --color-background: #0b0b0c;
+  --color-foreground: #f3f1ec;
+  --color-surface: #141416;
+  --color-surface-2: #1c1c1f;
+  --color-muted: #1f1f23;
+  --color-muted-foreground: #8e8c88;
+  --color-subtle: #6a6864;
+  --color-primary: #c5cdd4;
+  --color-primary-foreground: #0b0b0c;
+  --color-accent: #c5cdd4;
+  --color-accent-foreground: #0b0b0c;
+  --color-border: color-mix(in oklab, #f3f1ec 12%, transparent);
+  --color-ring: #c5cdd4;
+  --color-card: #141416;
+  --color-card-foreground: #f3f1ec;
+  --color-ok: #8fa894;
+  --color-bad: #c98980;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-2xl: 32px;
+
+  --shadow-border: 0 0 0 1px color-mix(in oklab, #f3f1ec 8%, transparent);
+  --shadow-border-hover: 0 0 0 1px color-mix(in oklab, #f3f1ec 13%, transparent);
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-smooth-out: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --motion-stagger: 40ms;
+  --motion-micro: 80ms;
+  --motion-quick: 150ms;
+  --motion-fast: 250ms;
+  --motion-medium: 350ms;
+  --motion-slow: 400ms;
+}
+
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  html,
+  body,
+  #app {
+    min-height: 100dvh;
+    background: var(--color-background);
+    color: var(--color-foreground);
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+}
+
+@layer components {
+  .btn-tap {
+    transition-property: scale, opacity, background-color, box-shadow;
+    transition-duration: var(--motion-quick);
+    transition-timing-function: var(--ease-out);
+  }
+
+  .btn-tap:active:not(:disabled) {
+    scale: 0.96;
+  }
+
+  .page-safe {
+    padding-top: max(1.25rem, env(safe-area-inset-top));
+    padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+    padding-left: max(1.25rem, env(safe-area-inset-left));
+    padding-right: max(1.25rem, env(safe-area-inset-right));
+  }
+
+  .stagger-in {
+    opacity: 0;
+    transform: translateY(var(--motion-y-medium, 12px));
+    filter: blur(var(--motion-blur-md, 3px));
+    animation: rise-in var(--motion-slow) var(--ease-smooth-out) forwards;
+  }
+
+  .stagger-in:nth-child(1) {
+    animation-delay: 0ms;
+  }
+  .stagger-in:nth-child(2) {
+    animation-delay: calc(var(--motion-stagger) * 2);
+  }
+  .stagger-in:nth-child(3) {
+    animation-delay: calc(var(--motion-stagger) * 4);
+  }
+  .stagger-in:nth-child(4) {
+    animation-delay: calc(var(--motion-stagger) * 6);
+  }
+
+  .pulse-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 9999px;
+    background: var(--color-ok);
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-ok) 55%, transparent);
+    animation: live-pulse 2.4s var(--ease-out) infinite;
+  }
+}
+
+@keyframes rise-in {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes live-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-ok) 45%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 6px color-mix(in oklab, var(--color-ok) 0%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-ok) 0%, transparent);
+  }
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-4px);
+  }
+  50% {
+    transform: translateX(4px);
+  }
+  75% {
+    transform: translateX(-3px);
+  }
+}
+
+.animate-shake {
+  animation: shake 400ms var(--ease-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stagger-in {
+    animation: none;
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+
+  .pulse-dot {
+    animation: none;
+  }
+
+  .btn-tap:active:not(:disabled) {
+    scale: 1;
+  }
+
+  .animate-shake {
+    animation: none;
+  }
+}
